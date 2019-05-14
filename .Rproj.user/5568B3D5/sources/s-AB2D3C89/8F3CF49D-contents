@@ -1,0 +1,80 @@
+```{r}
+library(Seurat)
+library(dplyr)
+source('./src/get_su.R')
+source('./src/FCBF.R')
+
+pbmc <- readRDS("./data/pbmc_tutorial.rds")
+exprs <- as.data.frame(as.matrix(pbmc@data))
+target <- as.factor(pbmc@ident)
+rm(list=("pbmc"))
+source('./src/surpevised_disc.R')
+source('./src/surpevised_disc_df.R')
+
+discretized_exprs <- supervised_disc_df(exprs, target)
+
+#library(FCBF)
+
+su_supdis<- get_su(discretized_exprs, target)
+
+su_supdis$gene <- rownames(su_supdis)
+su_supdis <- su_supdis[order(su_supdis$`sort(su_ic, decreasing = T)`, decreasing =  T),]
+
+
+fcbf <- fcbf(discretized_exprs, target, thresh = 0.2, verbose = T)
+fcbf$gene <- rownames(fcbf)
+```
+
+```{r}
+su_sup2 <- su_supdis[su_supdis$`sort(su_ic, decreasing = T)`>0.2,]
+bla <- gsub('\\.', '-',su_sup2[,2])
+mini_exprs <- discretized_exprs[bla,]
+edgelist <- data.frame(1,1,1)
+edgelist <- edgelist[-1,]
+fcbf$gene <- gsub('\\.', '-', fcbf$gene)
+for (i in bla) {
+print(i)
+gene_i <- as.factor(discretized_exprs[i, ])
+gene_i_correlates <-
+get_su(x = mini_exprs, y = as.factor(mini_exprs[i, ]))
+gene_i_correlates$gene <- rownames(gene_i_correlates)
+gene_i_correlates$su_ic <-
+su_supdis$`sort(su_ic, decreasing = T)`[match(gene_i_correlates$gene, su_supdis$gene)]
+gene_i_correlates$fcbf_removed <-
+ifelse(
+gene_i_correlates$su_ic <  gene_i_correlates$`sort(su_ic, decreasing = T)`,
+'removed',
+'kept'
+)
+gene_i_correlates <-
+gene_i_correlates[complete.cases(gene_i_correlates), ]
+
+gene_i_correlates <-
+gene_i_correlates[gene_i_correlates$fcbf_removed == "removed", ]
+edges_for_gene_i <-
+data.frame(
+EdgeA = sample(i, length(gene_i_correlates$gene), replace = T),
+EdgeB = gsub('\\.', '-', gene_i_correlates$gene),
+Weight = gene_i_correlates$`sort(su_ic, decreasing = T)`
+)
+edgelist <- rbind(edgelist, edges_for_gene_i)
+}
+
+edgelist_final <-   edgelist[as.character(edgelist$EdgeA) != as.character(edgelist$EdgeB),]
+
+edgelist_final <-   edgelist_final[!(paste(edgelist$EdgeA, edgelist$EdgeB) %in% paste(edgelist$EdgeB, edgelist$EdgeA)),]
+library(igraph)
+edgelist_final <-  droplevels(edgelist_final)
+edgelist_final<- edgelist_final[complete.cases(edgelist_final),]
+adj <- tidyr::spread(edgelist_final, key = EdgeB, value = Weight)
+adj[is.na(adj)] <- 0 
+rownames(adj) <- adj$EdgeA
+adj$EdgeA <- NULL
+bla <- read.graph()
+g <- graph_from_incidence_matrix(adj,weighted = T, directed = F)
+hs <- hub_score(g, weights=NA)$vector
+plot(g, vertex.size=4, vertex.label.dist=0,  edge.curved=.2,   vertex.label.font=1, vertex.label.cex=.5)
+
+
+```
+

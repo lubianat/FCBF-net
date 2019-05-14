@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1557842730562.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1914723549",
+    "id" : "288A85D3",
+    "lastKnownWriteTime" : 1557844223,
+    "last_content_update" : 1557844223189,
+    "path" : "~/Documents/Projects/side/supervised_coexpression/networks.rmd",
+    "project_path" : "networks.rmd",
+    "properties" : {
+        "cursorPosition" : "64,0",
+        "scrollLine" : "57",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

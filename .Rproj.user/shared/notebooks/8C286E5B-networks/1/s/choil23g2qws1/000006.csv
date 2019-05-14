@@ -1,0 +1,5 @@
+"0","fcbf$gene <- rownames(fcbf)
+"
+"2","Error in fcbf$gene <- rownames(fcbf) : 
+  object of type 'closure' is not subsettable
+"

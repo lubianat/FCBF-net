@@ -1,0 +1,22 @@
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ https://www.reprodutibilidadee.bio.br/nobudgetsciencehackweek?fbclid=IwAR16eg4LeOYoC6jbGCjpV2YBflwQZQ8gVWPa0K-_OCQTCFSN177nLnvECxxE
+bash: https://www.reprodutibilidade.bio.br/nobudgetsciencehackweek?fbclid=IwAR16eg4LeOYoC6jbGCjpV2YBflwQZQ8gVWPa0K-_OCQTCFSN177nLnvECxE: No such file or directory
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ echo "# FCBF NE[Ketworks" >> RE ADME.md
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ [K]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ git init
+Initialized empty Git repository in /home/lubianat/Documents/Projects/side/supervised_coexpression/.git/
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ git add REAN[KDME.md
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ git commit -m Fist[K[K[K[K'first commit' [A
+[master (root-commit) 964be9d] first commit
+ 1 file changed, 1 insertion(+)
+ create mode 100644 README.md
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ git remote add origin git@gi thub.com:kubianat[K[K[K[K[K[K[K[K[Kl[K:lubianat.[K/FCBF-NET[K[K[Kbet[K[K[Knet.git
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ git push -u origin master
+Counting objects: 3, done.
+Writing objects:  33% (1/3)   Writing objects:  66% (2/3)   Writing objects: 100% (3/3)   Writing objects: 100% (3/3), 234 bytes | 234.00 KiB/s, done.
+Total 3 (delta 0), reused 0 (delta 0)
+To github.com:lubianat/FCBF-net.git
+ * [new branch]      master -> master
+Branch 'master' set up to track remote branch 'master' from 'origin'.
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ mkdir data
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ mv pbmc_tutorial.rds data
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ echo data/*.rds >> .gitignor e
+]0;/home/lubianat/Documents/Projects/side/supervised_coexpression]0;lubianat@csbl-tiago: ~/Documents/Projects/side/supervised_coexpression[01;32mlubianat@csbl-tiago[00m:[01;34m~/Documents/Projects/side/supervised_coexpression[00m$ git add .

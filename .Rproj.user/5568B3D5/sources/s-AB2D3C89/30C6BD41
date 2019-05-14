@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1557843666093.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "30C6BD41",
+    "lastKnownWriteTime" : 7017568584673357177,
+    "last_content_update" : 1557843666093,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "51684400",
+        "caption" : "symetrical_uncertainty_scores",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=symetrical_uncertainty_scores&cache_key=51684400",
+        "displayedObservations" : 230,
+        "environment" : "",
+        "object" : "symetrical_uncertainty_scores",
+        "preview" : 0,
+        "totalObservations" : 230,
+        "variables" : 2
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
