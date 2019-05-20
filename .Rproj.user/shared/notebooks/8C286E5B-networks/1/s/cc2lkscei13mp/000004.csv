@@ -1,5 +1,0 @@
-"0","symetrical_uncertainty_scores_small <- symetrical_uncertainty_scores[symetrical_uncertainty_scores$SU > SU_threshold]
-"
-"2","Error in `[.data.frame`(symetrical_uncertainty_scores, symetrical_uncertainty_scores$SU >  : 
-  undefined columns selected
-"

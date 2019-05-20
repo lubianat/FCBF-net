@@ -13,11 +13,9 @@ library(igraph)
 ```
 
 ```{r Example data}
-# the Seurat object that is produced in Seurat's v2.0 tutorial
-pbmc <- readRDS("./data/pbmc_tutorial.rds")
-exprs <- as.data.frame(as.matrix(pbmc@data))
-target <- as.factor(pbmc@ident)
-rm(list=("pbmc"))
+data("pbmc_small")
+exprs <- as.data.frame(as.matrix(pbmc_small@data))
+target <- as.factor(pbmc_small@ident)
 ```
 
 
@@ -33,13 +31,13 @@ Now that we have a discretized gene expression table, we can proceed to start ma
 
 ```{r}
 # get the SU scores
-symetrical_uncertainty_scores <- FCBF::get_su(discretized_exprs, target)
-symetrical_uncertainty_scores$gene <- rownames(symetrical_uncertainty_scores)
+su_ic_vector <- FCBF::get_su(discretized_exprs, target)
+su_ic_vector$gene <- rownames(su_ic_vector)
 
-colnames(symetrical_uncertainty_scores)[1] <- 'SU'
+colnames(su_ic_vector)[1] <- 'SU'
 
-fcbf_filtered <- fcbf(discretized_exprs, target, thresh = 0.2, verbose = T)
-fcbf_filtered$gene <- rownames(fcbf)
+fcbf_filtered <- FCBF::fcbf(discretized_exprs, target, thresh = 0.2, verbose = T)
+fcbf_filtered$gene <- rownames(fcbf_filtered)
 
 FCBF_genes <- gsub('\\.', '-', fcbf_filtered$gene)
 
@@ -53,14 +51,23 @@ Step 1:
 In this way, the genes that make up the final network will be related to the class of interest.
 
 
+First, lets take a look at the distribution of SU values
+
+```{r Distribution of SU Values}
+FCBF::su_plot(discretized_exprs,target)
+```
+
+It seems as a threshold of 0.2 is ok. It was the one used for FCBF before anyway.  
+
 
 ```{r}
+
 SU_threshold <- 0.2 
 
-symetrical_uncertainty_scores_small <- symetrical_uncertainty_scores[symetrical_uncertainty_scores$SU > SU_threshold,]
+su_ic_vector_small <- su_ic_vector[su_ic_vector$SU > SU_threshold,]
 
 
-SU_genes <- gsub('\\.', '-',symetrical_uncertainty_scores_small[,2])
+SU_genes <- gsub('\\.', '-',su_ic_vector_small[,2])
 
 
 exprs_small <- discretized_exprs[SU_genes ,]
@@ -72,60 +79,82 @@ Now we have what is needed to calculate the correlations for the network.
 
 
 ```{r}
-edgelist <- data.frame(1,1,1)
-edgelist <- edgelist[-1,]
+THIS IS BUGGY!!!
+THE GET_SU HAS TO BE PROPERLY ORDERED!!!!!!
+#'  su_i_j_matrix <- data.frame(genes =  SU_genes)
+#'  
+#'  
+#'  # this can surely be improved for speed.
+#'  for (i in SU_genes) {
+#'          print(i)
+#'          gene_i <- as.factor(discretized_exprs[i, ])
+#'          gene_i_correlates <- FCBF::get_su(x = exprs_small, y = as.factor(exprs_small[i, ]))
+#'          colnames(gene_i_correlates) <- i
+#'          su_i_j_matrix[, i] <- gene_i_correlates[,1]
+#'          
+#'  }
+```
 
 
-for (i in bla) {
-print(i)
-gene_i <- as.factor(discretized_exprs[i, ])
-gene_i_correlates <-
-get_su(x = mini_exprs, y = as.factor(mini_exprs[i, ]))
-gene_i_correlates$gene <- rownames(gene_i_correlates)
-gene_i_correlates$su_ic <-
-su_supdis$`sort(su_ic, decreasing = T)`[match(gene_i_correlates$gene, su_supdis$gene)]
-gene_i_correlates$fcbf_removed <-
-ifelse(
-gene_i_correlates$su_ic <  gene_i_correlates$`sort(su_ic, decreasing = T)`,
-'removed',
-'kept'
-)
-gene_i_correlates <-
-gene_i_correlates[complete.cases(gene_i_correlates), ]
 
-gene_i_correlates <-
-gene_i_correlates[gene_i_correlates$fcbf_removed == "removed", ]
-edges_for_gene_i <-
-data.frame(
-EdgeA = sample(i, length(gene_i_correlates$gene), replace = T),
-EdgeB = gsub('\\.', '-', gene_i_correlates$gene),
-Weight = gene_i_correlates$`sort(su_ic, decreasing = T)`
-)
-edgelist <- rbind(edgelist, edges_for_gene_i)
+Now we have an adjacency matrix composed by Symmetrical Uncertainty values. 
+
+This already can be used for studying coexpression. Lin, Langfelder, Horvath explore these matrices in "Comparison of co-expression measures: Mutual information, correlation, and model based indices". A major limitation of the study is that they used only one (rather arbitrary) discretization method for calculating the mutual information. And they were working with bulk RNA-Seq simulations, the distribution of data points is rather different to single cell. Anyways.
+
+
+Step 1:
+    - Filter by SUij < SUic 
+    
+In this way, only associations that are stronger than the ones to the class are kept. 
+This generates assymetry, as this can be true for SUic but not for SUjc.
+We will handle this assymetry later. We will just, for now, call this our incidence matrix. 
+
+
+
+
+```{r}
+
+filtered_su_i_j_matrix <- data.frame(genes =  SU_genes)
+
+for (i in colnames(su_i_j_matrix[,-1])){
+  print(i)
+  if (all(su_ic_vector$gene[seq_len(length(su_i_j_matrix$genes))] == su_i_j_matrix$genes)){
+    
+      tf_vector <- su_i_j_matrix[,i] < su_ic_vector$SU[seq_len(length(su_i_j_matrix$genes))] 
+      
+      filtered_su_i_j_matrix[,i] <- su_i_j_matrix[,i] * tf_vector
+  }
 }
 
-edgelist_final <-
-edgelist[as.character(edgelist$EdgeA) != as.character(edgelist$EdgeB),]
 
-edgelist_final <-
-edgelist_final[!(paste(edgelist$EdgeA, edgelist$EdgeB) %in% paste(edgelist$EdgeB, edgelist$EdgeA)),]
-library(igraph)
-edgelist_final <-  droplevels(edgelist_final)
-edgelist_final <- edgelist_final[complete.cases(edgelist_final),]
-adj <- tidyr::spread(edgelist_final, key = EdgeB, value = Weight)
-adj[is.na(adj)] <- 0
-rownames(adj) <- adj$EdgeA
-adj$EdgeA <- NULL
-bla <- read.graph()
-g <- graph_from_incidence_matrix(adj, weighted = T, directed = F)
-hs <- hub_score(g, weights = NA)$vector
-plot(
-g,
-vertex.size = 4,
-vertex.label.dist = 0,
-edge.curved = .2,
-vertex.label.font = 1,
-vertex.label.cex = .5
-)
 ```
+
+
+This is our final matrix. We can apply classical module detection algorithms, such as DynamicTreeCut to test it.
+Or we can consider the modules that FCBF provides.
+
+For now, we will use FCBF modules in the following way:
+  - Genes selected by FCBF will be considered seeds.
+  - All genes j in a module must satisfy that SU(seed,j) > SU (j, class)
+  
+These are the genes that would be REMOVED by the FCBF algorithm.
+
+
+
+```{r}
+
+TODO --> EXPORT SU from FCBF!!
+#' list_of_fcbf_modules <- list()
+#' 
+#' for (seed in fcbf_filtered$gene){
+#'   
+#'   su_i_j_matrix[,seed]
+#'   
+#'   print(seed)
+#' }
+
+```
+
+
+  
 
