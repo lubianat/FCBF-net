@@ -1,1 +1,4 @@
 data/pbmc_tutorial.rds
+*.Rprok
+supervised_coexpression.Rproj
+.Rproj.user
