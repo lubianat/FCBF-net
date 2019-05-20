@@ -79,20 +79,23 @@ Now we have what is needed to calculate the correlations for the network.
 
 
 ```{r}
-THIS IS BUGGY!!!
-THE GET_SU HAS TO BE PROPERLY ORDERED!!!!!!
-#'  su_i_j_matrix <- data.frame(genes =  SU_genes)
-#'  
-#'  
-#'  # this can surely be improved for speed.
-#'  for (i in SU_genes) {
-#'          print(i)
-#'          gene_i <- as.factor(discretized_exprs[i, ])
-#'          gene_i_correlates <- FCBF::get_su(x = exprs_small, y = as.factor(exprs_small[i, ]))
-#'          colnames(gene_i_correlates) <- i
-#'          su_i_j_matrix[, i] <- gene_i_correlates[,1]
-#'          
-#'  }
+su_i_j_matrix <- data.frame(genes =  SU_genes)
+  
+  
+  # this can surely be improved for speed.
+  for (i in SU_genes) {
+          print(i)
+          gene_i <- as.factor(discretized_exprs[i, ])
+          gene_i_correlates <- FCBF::get_su(x = exprs_small, y = as.factor(exprs_small[i, ]))
+          gene_i_correlates$gene <- rownames(gene_i_correlates)
+          gene_i_correlates <- gene_i_correlates[match(su_i_j_matrix$genes,gene_i_correlates$gene),]
+          
+          colnames(gene_i_correlates)[1] <- i
+          
+          
+          su_i_j_matrix[, i] <- gene_i_correlates[,1]
+          
+  }
 ```
 
 
@@ -143,17 +146,32 @@ These are the genes that would be REMOVED by the FCBF algorithm.
 
 ```{r}
 
-TODO --> EXPORT SU from FCBF!!
-#' list_of_fcbf_modules <- list()
-#' 
-#' for (seed in fcbf_filtered$gene){
-#'   
-#'   su_i_j_matrix[,seed]
-#'   
-#'   print(seed)
-#' }
+ list_of_fcbf_modules <- list()
+ 
+ for (seed in fcbf_filtered$gene){
+   
+   
+   print(seed)
+   module_members <- c()
+   for(j in SU_genes){
+        su1 <- FCBF::SU(as.factor(exprs_small[seed,]), as.factor(exprs_small[j,] ))
+        su2 <- FCBF::SU(as.factor(exprs_small[j,]), target )
+        
+        if (su1 > su2){
+        module_members <- c(module_members,j)
+        }
+   }
+   list_of_fcbf_modules[[seed]] <- module_members
+   
+
+ }
 
 ```
+
+Hooray! Note that we have fuzzy modules, as one gene may be part of more than one module. 
+Genes may be part of multiple networks, so, it it makes sense to have fuzzy modules. 
+
+
 
 
   
