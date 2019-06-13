@@ -1,0 +1,269 @@
+#FCBF networks
+
+Our goal here is to explore the FCBF package as a tool for building co-expression networks.
+
+
+
+```{r Packages required}
+#devtools::install_github('lubianat/FCBF')
+library(FCBF)
+library(Seurat)
+library(dplyr)
+library(igraph)
+
+```
+
+```{r Example data}
+
+library(dplyr)
+library(Seurat)
+# Load the PBMC dataset
+pbmc.data <- Read10X(data.dir = "./data/hg19/")
+# Initialize the Seurat object with the raw (non-normalized data).
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+pbmc
+
+# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+
+# Visualize QC metrics as a violin plot
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+pbmc <- NormalizeData(pbmc)
+
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(pbmc), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+CombinePlots(plots = list(plot1, plot2))
+
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes)
+
+
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+
+print(pbmc[["pca"]], dims = 1:13, nfeatures = 5)
+
+pbmc <- FindNeighbors(pbmc, dims = 1:13)
+pbmc <- FindClusters(pbmc, resolution = 2.9)
+
+
+exprs <- GetAssayData(object = pbmc)
+target <- Idents(object = pbmc)
+
+
+```
+
+
+Let's start by discretizing the data using FCBF's unsupervised discretize exprs.
+
+```{r Discretizing the data}
+set.seed(3)
+discretized_exprs <- FCBF::discretize_exprs(expression_table = exprs, number_of_bins = 4)
+
+```
+
+Now that we have a discretized gene expression table, we can proceed to start making the network. 
+
+```{r Distribution of SU Values}
+FCBF::su_plot(discretized_exprs,target)
+```
+
+It seems as a threshold of 0.1 is ok. 
+
+
+```{r}
+# get the SU scores
+su_ic_vector <- FCBF::get_su(discretized_exprs, target)
+su_ic_vector$gene <- rownames(su_ic_vector)
+
+colnames(su_ic_vector)[1] <- 'SU'
+
+fcbf_filtered <- FCBF::fcbf(discretized_exprs, target, thresh = 0.1, verbose = T)
+fcbf_filtered$gene <- rownames(fcbf_filtered)
+
+FCBF_genes <- gsub('\\.', '-', fcbf_filtered$gene)
+
+```
+
+There are two relevant table at the moment : the SU scored for all genes, and the genes selected by FCBF. 
+
+Step 1:
+  - Set an SU threshold to filter the total table
+
+In this way, the genes that make up the final network will be related to the class of interest.
+
+
+First, lets take a look at the distribution of SU values
+
+
+```{r}
+
+SU_threshold <- 0.1
+
+su_ic_vector_small <- su_ic_vector[su_ic_vector$SU > SU_threshold,]
+
+
+SU_genes <- gsub('\\.', '-',su_ic_vector_small[,2])
+
+
+exprs_small <- discretized_exprs[SU_genes ,]
+```
+
+
+Now we have what is needed to calculate the correlations for the network. 
+
+
+
+```{r}
+su_i_j_matrix <- data.frame(genes =  SU_genes)
+
+
+# this can surely be improved for speed.
+for (i in SU_genes) {
+  print(i)
+  gene_i <- as.factor(discretized_exprs[i, ])
+  gene_i_correlates <- FCBF::get_su(x = exprs_small, y = as.factor(exprs_small[i, ]))
+  gene_i_correlates$gene <- gsub('\\.', '-',rownames(gene_i_correlates))
+  gene_i_correlates <- gene_i_correlates[match(su_i_j_matrix$genes,gene_i_correlates$gene),]
+  
+  colnames(gene_i_correlates)[1] <- i
+  
+  
+  su_i_j_matrix[, i] <- gene_i_correlates[,1]
+  
+}
+```
+
+
+
+Now we have an adjacency matrix composed by Symmetrical Uncertainty values. 
+
+This already can be used for studying coexpression. Lin, Langfelder, Horvath explore these matrices in "Comparison of co-expression measures: Mutual information, correlation, and model based indices". A major limitation of the study is that they used only one (rather arbitrary) discretization method for calculating the mutual information. And they were working with bulk RNA-Seq simulations, the distribution of data points is rather different to single cell. Anyways.
+
+
+Step 1:
+  - Filter by SUij < SUic 
+
+In this way, only associations that are stronger than the ones to the class are kept. 
+This generates assymetry, as this can be true for SUic but not for SUjc.
+We will handle this assymetry later. We will just, for now, call this our incidence matrix. 
+
+
+
+
+```{r}
+
+filtered_su_i_j_matrix <- data.frame(genes =  SU_genes)
+
+for (i in colnames(su_i_j_matrix[,-1])){
+  print(i)
+  if (all(gsub("\\.", "-",su_ic_vector$gene[seq_len(length(su_i_j_matrix$genes))]) == as.character(su_i_j_matrix$genes))){
+    
+    tf_vector <- su_i_j_matrix[,i] > su_ic_vector$SU[seq_len(length(su_i_j_matrix$genes))] 
+    
+    filtered_su_i_j_matrix[,i] <- su_i_j_matrix[,i] * tf_vector
+  }
+}
+
+
+```
+
+
+This is our final matrix. We can apply classical module detection algorithms, such as DynamicTreeCut to test it.
+Or we can consider the modules that FCBF provides.
+
+For now, we will use FCBF modules in the following way:
+  - Genes selected by FCBF will be considered seeds.
+- All genes j in a module must satisfy that SU(seed,j) > SU (j, class)
+
+These are the genes that would be REMOVED by the FCBF algorithm.
+
+
+
+```{r}
+
+#'  list_of_fcbf_modules <- list()
+#'  
+#'  for (seed in FCBF_genes){
+#'    
+#'    
+#'    print(seed)
+#'    module_members <- c()
+#'    for(j in SU_genes){
+#'         su1 <- FCBF::SU(as.factor(exprs_small[seed,]), as.factor(exprs_small[j,] ))
+#'         su2 <- FCBF::SU(as.factor(exprs_small[j,]), target )
+#'         
+#'         if (su1 > su2){
+#'         module_members <- c(module_members,j)
+#'         }
+#'    }
+#'    list_of_fcbf_modules[[seed]] <- module_members
+#'    
+#' 
+#'  }
+#' 
+```
+
+Hooray! Note that we have fuzzy modules, as one gene may be part of more than one module. 
+Genes may be part of multiple networks, so, it it makes sense to have fuzzy modules. 
+
+
+
+Now let's try and plot it
+
+```{r}
+library(igraph)
+
+#pbmc <- RunUMAP(pbmc, dims = 1:10)
+pdf('20_clust_metaclusters_0.1.pdf')
+pbmc_expert_label <- FindClusters(pbmc,resolution = 0.5)
+new.cluster.ids <- c( "CD14+ Mono", "Memory CD4 T","Naive CD4 T", "B", "CD8 T", "FCGR3A+ Mono", 
+    "NK", "DC", "Platelet")
+names(new.cluster.ids) <- levels(pbmc_expert_label)
+pbmc_expert_label <- RenameIdents(pbmc_expert_label , new.cluster.ids)
+
+print(DimPlot(pbmc, reduction = "umap"))
+print(DimPlot(pbmc_expert_label, reduction = "umap"))
+for (seed in FCBF_genes){
+
+
+print(seed)
+members_of_module <- as.character(filtered_su_i_j_matrix$genes[filtered_su_i_j_matrix[,seed]>0])
+members_of_module <- members_of_module[!is.na(members_of_module)]
+if(length(members_of_module) > 1) {
+  adj <- filtered_su_i_j_matrix[members_of_module,members_of_module]
+adj <- as.matrix(adj)
+net <- graph_from_adjacency_matrix(adj, weighted = T, mode = 'undirected')
+net <- simplify(net, remove.multiple = F, remove.loops = T) 
+l <- layout_with_fr(net)
+plot(net, layout=l, vertex.shape="none", main =paste(seed, 'CBF module') )
+members_to_plot <- members_of_module[1:4]
+print(FeaturePlot(pbmc, features = members_to_plot ))
+}
+}
+dev.off()
+  
+
+
+
+
+```
+
+Now let's visualize the clusters
+
+
+```{r}
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+DimPlot(pbmc, reduction = "umap")
+
+```
+

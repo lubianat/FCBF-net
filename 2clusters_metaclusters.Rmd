@@ -3,6 +3,7 @@
 Our goal here is to explore the FCBF package as a tool for building co-expression networks.
 
 
+
 ```{r Packages required}
 #devtools::install_github('lubianat/FCBF')
 library(FCBF)
@@ -13,9 +14,52 @@ library(igraph)
 ```
 
 ```{r Example data}
-pbmc <- readRDS("./data/pbmc_tutorial.rds")
-exprs <- as.data.frame(as.matrix(pbmc@data))
-target <- as.factor(pbmc@ident)
+
+library(dplyr)
+library(Seurat)
+# Load the PBMC dataset
+pbmc.data <- Read10X(data.dir = "./data/hg19/")
+# Initialize the Seurat object with the raw (non-normalized data).
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+pbmc
+
+# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+
+# Visualize QC metrics as a violin plot
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+pbmc <- NormalizeData(pbmc)
+
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(pbmc), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+CombinePlots(plots = list(plot1, plot2))
+
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes)
+
+
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+
+print(pbmc[["pca"]], dims = 1:13, nfeatures = 5)
+
+pbmc <- FindNeighbors(pbmc, dims = 1:13)
+pbmc <- FindClusters(pbmc, resolution = 0.001)
+
+
+exprs <- GetAssayData(object = pbmc)
+target <- Idents(object = pbmc)
+
+
 ```
 
 
@@ -23,11 +67,18 @@ Let's start by discretizing the data using FCBF's supervised discretize exprs.
 
 ```{r Discretizing the data}
 set.seed(3)
-discretized_exprs <- FCBF::discretize_exprs_supervised(exprs, target)
+discretized_exprs <- FCBF::discretize_exprs(expression_table = exprs, number_of_bins = 4)
 
 ```
 
 Now that we have a discretized gene expression table, we can proceed to start making the network. 
+
+```{r Distribution of SU Values}
+FCBF::su_plot(discretized_exprs,target)
+```
+
+It seems as a threshold of 0.1 is ok. 
+
 
 ```{r}
 # get the SU scores
@@ -52,12 +103,6 @@ In this way, the genes that make up the final network will be related to the cla
 
 
 First, lets take a look at the distribution of SU values
-
-```{r Distribution of SU Values}
-FCBF::su_plot(discretized_exprs,target)
-```
-
-It seems as a threshold of 0.1 is ok. It was the one used for FCBF before anyway.  
 
 
 ```{r}
@@ -176,25 +221,44 @@ Genes may be part of multiple networks, so, it it makes sense to have fuzzy modu
 Now let's try and plot it
 
 ```{r}
-library(igraph)
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+pdf('2_clust_metaclusters_0.1.pdf')
+pbmc_expert_label <- FindClusters(pbmc,resolution = 0.5)
+new.cluster.ids <- c( "CD14+ Mono", "Memory CD4 T","Naive CD4 T", "B", "CD8 T", "FCGR3A+ Mono", 
+    "NK", "DC", "Platelet")
+names(new.cluster.ids) <- levels(pbmc_expert_label)
+pbmc_expert_label <- RenameIdents(pbmc_expert_label , new.cluster.ids)
 
-pdf('hm.pdf')
+print(DimPlot(pbmc, reduction = "umap"))
+print(DimPlot(pbmc_expert_label, reduction = "umap"))
 for (seed in FCBF_genes){
-  print(seed)
-  members_of_module <- as.character(filtered_su_i_j_matrix$genes[filtered_su_i_j_matrix[,seed]>0])
-  members_of_module <- members_of_module[!is.na(members_of_module)]
+
+
+print(seed)
+members_of_module <- as.character(filtered_su_i_j_matrix$genes[filtered_su_i_j_matrix[,seed]>0])
+members_of_module <- members_of_module[!is.na(members_of_module)]
+if(length(members_of_module) > 1) {
   adj <- filtered_su_i_j_matrix[members_of_module,members_of_module]
-  adj <- as.matrix(adj)
-  net <- graph_from_adjacency_matrix(adj, weighted = T, mode = 'undirected')
-  net <- simplify(net, remove.multiple = F, remove.loops = T) 
-  l <- layout_with_fr(net)
-  plot(net, layout=l, vertex.shape="none")
-  
-  }
-
+adj <- as.matrix(adj)
+net <- graph_from_adjacency_matrix(adj, weighted = T, mode = 'undirected')
+net <- simplify(net, remove.multiple = F, remove.loops = T) 
+l <- layout_with_fr(net)
+plot(net, layout=l, vertex.shape="none", main =paste(seed, 'CBF module') )
+members_to_plot <- members_of_module[1:4]
+print(FeaturePlot(pbmc, features = members_to_plot ))
+}
+}
 dev.off()
-
+  
 
 ```
   
+Now let's visualize the clusters
+
+
+```{r}
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+DimPlot(pbmc, reduction = "umap")
+
+```
 
